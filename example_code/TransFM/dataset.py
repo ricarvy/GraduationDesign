@@ -5,6 +5,7 @@ from collections import defaultdict
 import copy
 import os
 
+
 # Class to represent a dataset
 class Dataset:
     def __init__(self, path, args, user_min=5, item_min=5):
@@ -13,40 +14,54 @@ class Dataset:
         self.args = args
 
         df = pd.read_csv(path, sep=' ', header=None,
-                names=['user_id', 'item_id', 'rating', 'time'], index_col=False)
+                         names=['user_id', 'item_id', 'rating', 'time'], index_col=False)
 
-        print 'First pass'
-        print '\tnum_users = ' + str(len(df['user_id'].unique()))
-        print '\tnum_items = ' + str(len(df['item_id'].unique()))
-        print '\tdf_shape  = ' + str(df.shape)
+        print
+        'First pass'
+        print
+        '\tnum_users = ' + str(len(df['user_id'].unique()))
+        print
+        '\tnum_items = ' + str(len(df['item_id'].unique()))
+        print
+        '\tdf_shape  = ' + str(df.shape)
 
         user_counts = df['user_id'].value_counts()
-        print 'Collected user counts...'
+        print
+        'Collected user counts...'
         item_counts = df['item_id'].value_counts()
-        print 'Collected item counts...'
+        print
+        'Collected item counts...'
 
         # Filter based on user and item counts
         df = df[df.apply(
             lambda x: user_counts[x['user_id']] >= user_min, axis=1)]
-        print 'User filtering done...'
+        print
+        'User filtering done...'
         df = df[df.apply(
             lambda x: item_counts[x['item_id']] >= item_min, axis=1)]
-        print 'Item filtering done...'
+        print
+        'Item filtering done...'
 
-        print 'Second pass'
-        print '\tnum_users = ' + str(len(df['user_id'].unique()))
-        print '\tnum_items = ' + str(len(df['item_id'].unique()))
-        print '\tdf_shape  = ' + str(df.shape)
+        print
+        'Second pass'
+        print
+        '\tnum_users = ' + str(len(df['user_id'].unique()))
+        print
+        '\tnum_items = ' + str(len(df['item_id'].unique()))
+        print
+        '\tdf_shape  = ' + str(df.shape)
 
         # Normalize temporal values
-        print 'Normalizing temporal values...'
+        print
+        'Normalizing temporal values...'
         mean = df['time'].mean()
-        std  = df['time'].std()
+        std = df['time'].std()
         self.ONE_YEAR = (60 * 60 * 24 * 365) / mean
         self.ONE_DAY = (60 * 60 * 24) / mean
         df['time'] = (df['time'] - mean) / std
 
-        print 'Constructing datasets...'
+        print
+        'Constructing datasets...'
         training_set = defaultdict(list)
         # Start counting users and items at 1 to facilitate sparse matrix
         # computation.
@@ -71,7 +86,7 @@ class Dataset:
 
             # Converts all ratings to positive implicit feedback
             training_set[user_to_idx[row.user_id]].append(
-                    (item_to_idx[row.item_id], row.time))
+                (item_to_idx[row.item_id], row.time))
 
         for user in training_set:
             training_set[user].sort(key=lambda x: x[1])
@@ -147,7 +162,8 @@ class Dataset:
 
         # Read user/item content info
         if self.args.features == 'content':
-            print 'Reading user demographics...'
+            print()
+            'Reading user demographics...'
             user_df = pd.read_csv(self.args.features_file.split(',')[0])
             user_df = user_df.set_index('idx')
             self.user_df = user_df
@@ -157,7 +173,8 @@ class Dataset:
                 self.orig_indices.append(self.idx_to_user[i])
             self.user_feats = sp.csr_matrix(user_df.loc[self.orig_indices].values)
 
-            print 'Reading item demographics...'
+            print
+            'Reading item demographics...'
             item_df = pd.read_csv(self.args.features_file.split(',')[1])
             item_df = item_df.set_index('idx')
             self.item_df = item_df
@@ -172,7 +189,8 @@ class Dataset:
 
         # Read geographical content info
         if self.args.features == 'geo':
-            print 'Reading geographical features...'
+            print
+            'Reading geographical features...'
 
             geo_df = pd.read_csv(self.args.features_file)
             geo_df = geo_df.set_index('place_id')
@@ -199,9 +217,9 @@ class Dataset:
         for user in self.training_set:
             for i in range(1, len(self.training_set[user])):
                 item = self.training_set[user][i]
-                item_prev = self.training_set[user][i-1]
+                item_prev = self.training_set[user][i - 1]
                 item_time = self.training_times[user][i]
-                item_prev_time = self.training_times[user][i-1]
+                item_prev_time = self.training_times[user][i - 1]
                 train_rows.append(user)
                 train_cols.append(item)
                 train_vals.append(1)
@@ -210,13 +228,13 @@ class Dataset:
                 train_prev_times.append(item_prev_time[1])
 
         self.sp_train = sp.coo_matrix((train_vals, (train_rows, train_cols)),
-                shape=(self.num_users, self.num_items))
+                                      shape=(self.num_users, self.num_items))
         self.sp_train_prev = sp.coo_matrix((train_prev_vals, (train_rows, train_cols)),
-                shape=(self.num_users, self.num_items))
+                                           shape=(self.num_users, self.num_items))
         self.sp_train_times = sp.coo_matrix((train_times, (train_rows, train_cols)),
-                shape=(self.num_users, self.num_items))
+                                            shape=(self.num_users, self.num_items))
         self.sp_train_prev_times = sp.coo_matrix((train_prev_times, (train_rows, train_cols)),
-                shape=(self.num_users, self.num_items))
+                                                 shape=(self.num_users, self.num_items))
 
         # Sparse validation matrices
         val_rows = []
@@ -241,13 +259,13 @@ class Dataset:
             val_prev_times.append(item_prev_time)
 
         self.sp_val = sp.coo_matrix((val_vals, (val_rows, val_cols)),
-                shape=(self.num_users, self.num_items))
+                                    shape=(self.num_users, self.num_items))
         self.sp_val_prev = sp.coo_matrix((val_prev_vals, (val_rows, val_cols)),
-                shape=(self.num_users, self.num_items))
+                                         shape=(self.num_users, self.num_items))
         self.sp_val_times = sp.coo_matrix((val_times, (val_rows, val_cols)),
-                shape=(self.num_users, self.num_items))
+                                          shape=(self.num_users, self.num_items))
         self.sp_val_prev_times = sp.coo_matrix((val_prev_times, (val_rows, val_cols)),
-                shape=(self.num_users, self.num_items))
+                                               shape=(self.num_users, self.num_items))
 
         # Sparse test matrices
         test_rows = []
@@ -272,24 +290,24 @@ class Dataset:
             test_prev_times.append(item_prev_time)
 
         self.sp_test = sp.coo_matrix((test_vals, (test_rows, test_cols)),
-                shape=(self.num_users, self.num_items))
+                                     shape=(self.num_users, self.num_items))
         self.sp_test_prev = sp.coo_matrix((test_prev_vals, (test_rows, test_cols)),
-                shape=(self.num_users, self.num_items))
+                                          shape=(self.num_users, self.num_items))
         self.sp_test_times = sp.coo_matrix((test_times, (test_rows, test_cols)),
-                shape=(self.num_users, self.num_items))
+                                           shape=(self.num_users, self.num_items))
         self.sp_test_prev_times = sp.coo_matrix((test_prev_times, (test_rows, test_cols)),
-                shape=(self.num_users, self.num_items))
+                                                shape=(self.num_users, self.num_items))
 
         self.val_prev_cats = None
         self.test_prev_cats = None
-            
+
     def generate_train_batch_sp(self):
         # Subtract 1 to account for missing 0 index
         user_indices = self.sp_train.row - 1
         prev_indices = self.sp_train_prev.data - 1
         pos_indices = self.sp_train.col - 1
         neg_indices = np.random.randint(1, self.sp_train.shape[1],
-                size=len(self.sp_train.row), dtype=np.int32) - 1
+                                        size=len(self.sp_train.row), dtype=np.int32) - 1
 
         # Convert from indices to one hot matrices
         users = self.user_one_hot[user_indices]
@@ -339,7 +357,7 @@ class Dataset:
         prev_indices = np.repeat(self.sp_val_prev.data, items_per_user) - 1
         pos_indices = np.repeat(self.sp_val.col, items_per_user) - 1
         neg_indices = np.random.randint(1, self.sp_val.shape[1],
-                size=len(self.sp_val.row)*items_per_user, dtype=np.int32) - 1
+                                        size=len(self.sp_val.row) * items_per_user, dtype=np.int32) - 1
 
         # Convert from indices to one hot matrices
         users = self.user_one_hot[user_indices]
@@ -390,7 +408,7 @@ class Dataset:
         prev_indices = np.repeat(self.sp_test_prev.data, items_per_user) - 1
         pos_indices = np.repeat(self.sp_test.col, items_per_user) - 1
         neg_indices = np.random.randint(1, self.sp_test.shape[1],
-                size=len(self.sp_test.row)*items_per_user, dtype=np.int32) - 1
+                                        size=len(self.sp_test.row) * items_per_user, dtype=np.int32) - 1
 
         # Convert from indices to one-hot matrices
         users = self.user_one_hot[user_indices]

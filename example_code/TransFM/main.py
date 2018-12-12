@@ -1,15 +1,15 @@
 # Main driver file
 
-import dataset
+import example_code.TransFM.dataset
 import os
-import TransFM
-import FM
-import PRME_FM
-import HRM_FM
+import example_code.TransFM.TransFM
+import example_code.TransFM.FM
+import example_code.TransFM.PRME_FM
+import example_code.TransFM.HRM_FM
 import sys
 import argparse
 
-print sys.argv
+print (sys.argv)
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -73,8 +73,8 @@ def parse_args():
         default=1000,
         type=int)
     args = parser.parse_args()
-    print args
-    print ''
+    print(args)
+    print('')
     return args
 
 def train_transrec(dataset, args):
@@ -89,10 +89,10 @@ def train_transrec(dataset, args):
 
     val_auc, test_auc = model.train()
 
-    print ''
-    print args
-    print 'Validation AUC  = ' + str(val_auc)
-    print 'Test AUC        = ' + str(test_auc)
+    print ('')
+    print (args)
+    print ('Validation AUC  = ' + str(val_auc))
+    print ('Test AUC        = ' + str(test_auc))
 
 if __name__ == '__main__':
     args = parse_args()

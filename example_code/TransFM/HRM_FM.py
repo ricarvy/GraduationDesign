@@ -1,39 +1,64 @@
-# Implementation of vanilla factorization machines
-
+# Implementation of the HRM-FM model
 import pandas as pd
 import scipy.sparse as sp
+import random
 import numpy as np
 import tensorflow as tf
-import dataset
-import random
+import example_code.TransFM.TransFM
 import sys
 
-class FM:
+class HRM_FM:
     def __init__(self, dataset, args):
-        print 'In class FM'
+        print ('In class HRM_FM')
         self.dataset = dataset
         self.args = args
 
         # Use a training batch to figure out feature dimensionality
         users, pos_feats, neg_feats = self.dataset.generate_train_batch_sp()
         self.feature_dim = pos_feats.shape[1]
-        print 'Feature dimension = ' + str(self.feature_dim)
+        print ('Feature dimension = ' + str(self.feature_dim))
 
-    def get_preds(self, var_linear, var_factors, sparse_pos_feats, sparse_neg_feats):
+    def get_preds(self, var_linear, var_emb_factors,
+            sparse_pos_feats, sparse_neg_feats):
+
         # Linear terms
         pos_linear = tf.sparse_tensor_dense_matmul(sparse_pos_feats, var_linear)
         neg_linear = tf.sparse_tensor_dense_matmul(sparse_neg_feats, var_linear)
 
         # Interaction terms
-        pos_emb_mul = tf.sparse_tensor_dense_matmul(sparse_pos_feats, var_factors)
-        term_1_pos = tf.square(tf.reduce_sum(pos_emb_mul, axis=1, keep_dims=True))
-        term_2_pos = tf.reduce_sum(tf.square(pos_emb_mul), axis=1, keep_dims=True)
-        pos_preds = pos_linear + 0.5 * (term_1_pos - term_2_pos)
+        # First define common terms that are used by future calculations
+        # Common terms
+        var_emb_product = tf.reduce_sum(tf.square(var_emb_factors), axis=1, keep_dims=True)
 
-        neg_emb_mul = tf.sparse_tensor_dense_matmul(sparse_neg_feats, var_factors)
-        term_1_neg = tf.square(tf.reduce_sum(neg_emb_mul, axis=1, keep_dims=True))
+        # Common terms positive
+        pos_feats_sum = tf.sparse_reduce_sum(sparse_pos_feats, axis=1, keep_dims=True)
+        pos_emb_mul = tf.sparse_tensor_dense_matmul(sparse_pos_feats, var_emb_factors)
+
+        # Common terms negative
+        neg_feats_sum = tf.sparse_reduce_sum(sparse_neg_feats, axis=1, keep_dims=True)
+        neg_emb_mul = tf.sparse_tensor_dense_matmul(sparse_neg_feats, var_emb_factors)
+
+        # Term 1 pos
+        prod_term_pos = tf.sparse_tensor_dense_matmul(
+                sparse_pos_feats, var_emb_product)
+        term_1_pos = prod_term_pos * pos_feats_sum
+
+        # Term 1 neg
+        prod_term_neg = tf.sparse_tensor_dense_matmul(
+                sparse_neg_feats, var_emb_product)
+        term_1_neg = prod_term_neg * neg_feats_sum
+
+        # Term 2
+        term_2_pos = tf.reduce_sum(tf.square(pos_emb_mul), axis=1, keep_dims=True)
         term_2_neg = tf.reduce_sum(tf.square(neg_emb_mul), axis=1, keep_dims=True)
-        neg_preds = neg_linear + 0.5 * (term_1_neg - term_2_neg)
+
+        # Diag term
+        diag_term_pos = tf.reduce_sum(tf.square(pos_emb_mul), axis=1, keep_dims=True)
+        diag_term_neg = tf.reduce_sum(tf.square(neg_emb_mul), axis=1, keep_dims=True)
+
+        # Predictions
+        pos_preds = pos_linear + 0.5 * (term_1_pos + term_2_pos) - diag_term_pos
+        neg_preds = neg_linear + 0.5 * (term_1_neg + term_2_neg) - diag_term_neg
 
         return pos_preds, neg_preds
 
@@ -46,7 +71,7 @@ class FM:
                     initializer=tf.random_uniform_initializer(
                         -self.args.init_mean, self.args.init_mean))
 
-            var_factors = tf.get_variable('factors',
+            var_emb_factors = tf.get_variable('emb_factors',
                     [self.feature_dim, self.args.num_dims],
                     initializer=tf.random_uniform_initializer(
                         -self.args.init_mean, self.args.init_mean))
@@ -78,15 +103,15 @@ class FM:
             # Input negative features, shape = (batch_size * feature_dim)
             sparse_neg_feats = tf.SparseTensor(pl_neg_indices, pl_neg_values, pl_neg_shape)
 
-            pos_preds, neg_preds = self.get_preds(var_linear, var_factors,
+            pos_preds, neg_preds = self.get_preds(var_linear, var_emb_factors,
                     sparse_pos_feats, sparse_neg_feats)
 
             l2_reg = tf.add_n([
                 self.args.linear_reg * tf.reduce_sum(tf.square(var_linear)),
-                self.args.emb_reg    * tf.reduce_sum(tf.square(var_factors)),
+                self.args.emb_reg    * tf.reduce_sum(tf.square(var_emb_factors)),
             ])
 
-            # BPR training op (add 1e-10 to help with numerical stability)
+            # BPR training op (add 1e-10 to help numerical stability)
             bprloss_op = tf.reduce_sum(tf.log(1e-10 + tf.sigmoid(pos_preds - neg_preds))) - l2_reg
             bprloss_op = -bprloss_op
 
@@ -104,7 +129,7 @@ class FM:
                     tf.to_float(tf.size(tf.unique(pl_user_list)[0])))
 
         self.var_linear = var_linear
-        self.var_factors = var_factors
+        self.var_emb_factors = var_emb_factors
         return (g, bprloss_op, optimizer, train_op, auc_op, l2_reg, placeholders)
 
     def create_feed_dict(self, placeholders, users, pos_feats, neg_feats):
@@ -138,14 +163,14 @@ class FM:
             best_val_auc = -1
             best_test_auc = -1
 
-            for epoch in xrange(self.args.max_iters):
-                print 'Epoch: {}'.format(epoch),
+            for epoch in range(self.args.max_iters):
+                print ('Epoch: {}'.format(epoch),)
                 users, pos_feats, neg_feats = self.dataset.generate_train_batch_sp()
                 feed_dict = self.create_feed_dict(placeholders, users, pos_feats, neg_feats)
                 loss, train_auc, l2, lr, _ = sess.run(
                     [bprloss_op, auc_op, l2_reg, optimizer._lr, train_op],
                     feed_dict = feed_dict)
-                print '\tLoss = {}'.format(loss)
+                print ('\tLoss = {}'.format(loss))
 
                 if epoch % self.args.eval_freq == 0:
                     users, pos_feats, neg_feats = self.dataset.generate_val_batch_sp()
@@ -156,7 +181,7 @@ class FM:
                     feed_dict = self.create_feed_dict(placeholders, users, pos_feats, neg_feats)
                     test_auc = sess.run(auc_op, feed_dict = feed_dict)
 
-                    print '\tVal AUC = ' + str(val_auc) + '\tTest AUC = ' + str(test_auc)
+                    print ('\tVal AUC = ' + str(val_auc) + '\tTest AUC = ' + str(test_auc))
 
                     if val_auc > best_val_auc:
                         best_epoch = epoch
@@ -164,14 +189,14 @@ class FM:
                         best_test_auc = test_auc
                     else:
                         if epoch >= (best_epoch + self.args.quit_delta):
-                            print 'Overfitted, exiting...'
-                            print '\tBest Epoch = {}'.format(best_epoch)
-                            print '\tValidation AUC = {}'.format(best_val_auc)
-                            print '\tTest AUC = {}'.format(best_test_auc)
+                            print ('Overfitted, exiting...')
+                            print ('\tBest Epoch = {}'.format(best_epoch))
+                            print ('\tValidation AUC = {}'.format(best_val_auc))
+                            print ('\tTest AUC = {}'.format(best_test_auc))
                             break
 
-                    print '\tCurrent max = {} at epoch {}'.format(
-                            best_val_auc, best_epoch)
+                    print ('\tCurrent max = {} at epoch {}'.format(
+                            best_val_auc, best_epoch))
 
         return (best_val_auc, best_test_auc)
 

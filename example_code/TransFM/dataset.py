@@ -13,17 +13,13 @@ class Dataset:
         self.item_min = item_min
         self.args = args
 
-        df = pd.read_csv(path, sep=' ', header=None,
+        df = pd.read_csv(path, sep=',', header=None,
                          names=['user_id', 'item_id', 'rating', 'time'], index_col=False)
 
-        print
-        'First pass'
-        print
-        '\tnum_users = ' + str(len(df['user_id'].unique()))
-        print
-        '\tnum_items = ' + str(len(df['item_id'].unique()))
-        print
-        '\tdf_shape  = ' + str(df.shape)
+        print('First pass')
+        print('\tnum_users = ' + str(len(df['user_id'].unique())))
+        print('\tnum_items = ' + str(len(df['item_id'].unique())))
+        print('\tdf_shape  = ' + str(df.shape))
 
         user_counts = df['user_id'].value_counts()
         print
@@ -454,3 +450,5 @@ class Dataset:
 
         return (users, pos_feats, neg_feats)
 
+if __name__ == '__main__':
+    d = Dataset('F:/LocalProject/GraduationDesign/example_code/TransFM/data/MovieLen/ratings.csv', None)

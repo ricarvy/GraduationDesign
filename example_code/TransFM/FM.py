@@ -5,6 +5,7 @@ import scipy.sparse as sp
 import numpy as np
 import tensorflow as tf
 import example_code.TransFM.dataset
+
 import random
 import sys
 
@@ -17,7 +18,7 @@ class FM:
         # Use a training batch to figure out feature dimensionality
         users, pos_feats, neg_feats = self.dataset.generate_train_batch_sp()
         self.feature_dim = pos_feats.shape[1]
-        print ('Feature dimension = ' + str(self.feature_dim)) 
+        print ('Feature dimension = ' + str(self.feature_dim))
 
     def get_preds(self, var_linear, var_factors, sparse_pos_feats, sparse_neg_feats):
         # Linear terms

@@ -1,4 +1,4 @@
-# 基于卷积矩阵分解（FM）地推荐系统
+# 基于卷积矩阵分解（FM）的推荐系统
 
 1.Convolutional Matrix Factorization for Document Context-Aware Recommendation
 

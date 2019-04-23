@@ -449,6 +449,6 @@ class Dataset:
         return (users, pos_feats, neg_feats)
 
 if __name__ == '__main__':
-    d = Dataset('data/MovieLen/ratings_tiny.csv', None)
+    d = Dataset('data/MovieLen/ratings_tiny.csv', args={'features':'content'})
     result_test = d.generate_test_batch_sp()
     print(result_test)

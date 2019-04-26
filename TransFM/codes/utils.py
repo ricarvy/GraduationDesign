@@ -34,7 +34,7 @@ class DataGenerator(object):
             df_movie_dummies = pd.get_dummies(df_total['movieId'], prefix='movie')
             df_tag_dummies = pd.get_dummies(df_total['tagId'], prefix='tag')
             df_total = pd.concat([df, df_user_dummies, df_movie_dummies,df_tag_dummies], axis=1)
-            df_total.drop(['userId', 'movieId', 'tagId'], inplace=True)
+            # df_total.drop(['userId', 'movieId', 'tagId'], inplace=True)
         else:
             df_user_dummies = pd.get_dummies(df['userId'], prefix='user')
             df_movie_dummies = pd.get_dummies(df['movieId'], prefix='movie')
@@ -60,7 +60,7 @@ class DataGenerator(object):
             batch_data = batch_data.sort_values(['userId', 'timestamp'])
         target = batch_data[['rating']]
         features = batch_data.drop(['rating'], axis=1)
-        return features.values, target.values
+        return features.values.reshape((features.shape[0], features.shape[1], 1, 1)), target.values
 
 
 if __name__ == '__main__':

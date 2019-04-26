@@ -23,23 +23,28 @@ def build_parser():
     ### 对于每一个用户最大推荐电影数
     parser.add_argument("--item_num_com", dest="item_num_com",
                         help="The maximum number of recommendations to single person",
-                        default="3")
+                        default=7)
     ### 用于训练的对于单个用户的推荐电影数（默认与最大推荐电影数相同）
     parser.add_argument("--item_num_train", dest="item_num_train",
                         help="The maximum number of recommendations to single person for training",
-                        default="3")
+                        default=1024)
     ### 是否与baseline算法进行对比
     parser.add_argument("--is_compare_with_baseline",
                         help="Whether compare with performance of baseline algoes",
                         dest="algo",
                         default=False)
-    # parser.add_argument("--algos",
-    #                     help="algo names or indexes of training_package, seperated by \",\"",
-    #                     dest="algos")
-    # parser.add_argument("--labels", dest="labels",
-    #                     help="names that will shown in the figure caption or table header")
-    # parser.add_argument("--format", dest="format", default="raw",
-    #                     help="format of the table printed")
+    ### 训练轮数
+    parser.add_argument("--epoches",
+                        help="training epoches",
+                        dest="epoches",
+                        default=64)
+    ### 每轮每次训练数据集数据量
+    parser.add_argument("--batch_size", dest="batch_size",
+                        help="batch size",
+                        default=64)
+    ### 测试数据集数据量
+    parser.add_argument("--test_batch_size", dest="test_batch_size", default=640,
+                        help="test batch size")
     # parser.add_argument("--device", dest="device", default="cpu",
     #                     help="device to be used to train")
     # parser.add_argument("--folder", dest="folder", type=int,
@@ -50,10 +55,18 @@ def build_parser():
 if __name__ == '__main__':
     parser = build_parser()
     options = parser.parse_args()
+    item_num_train = options.item_num_train
+    item_num_com = options.item_num_com
+    epoches = options.epoches
+    batch_size = options.batch_size
+    test_batch_size = options.test_batch_size
 
     dataGen = DataGenerator(filePath='data/MovieLen/ratings_tiny.csv', tagFilePath='data/MovieLen/tags.csv')
-    batch_features, batch_targets = dataGen.generate_data_batch()
-    feature_shape, target_shape = batch_features[0].shape, batch_targets[0].shape
+    batch_features, batch_targets = dataGen.generate_data_batch(batch_size=item_num_train)
+    print(batch_features.shape,batch_targets.shape)
+    feature_shape, target_shape = batch_features[0].shape, item_num_com
 
-    net = AttentionNet(data=(batch_features, batch_targets), input_shape=feature_shape, output_shape=target_shape).build_net()
-    print(net.summary())
+    net= AttentionNet(data=(batch_features, batch_targets), input_shape=feature_shape, output_shape=target_shape)
+    net.train(batch_size=batch_size, epoches=epoches)
+    # print(net.build_cnn_net()['Q_net'].summary())
+    # net.test(epoches=epoches, batch_size = test_batch_size)

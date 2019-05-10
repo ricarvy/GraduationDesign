@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import sys
 import os
+from TransFM.codes.configs import Q_net_params, K_net_params
 from argparse import ArgumentParser
 from TransFM.codes.utils import DataGenerator
 from TransFM.codes.net import AttentionNet
@@ -61,12 +62,19 @@ if __name__ == '__main__':
     batch_size = options.batch_size
     test_batch_size = options.test_batch_size
 
+    cfg = {
+        'Q_net_params':Q_net_params,
+        'K_net_params':K_net_params
+    }
     dataGen = DataGenerator(filePath='data/MovieLen/ratings_tiny.csv', tagFilePath='data/MovieLen/tags.csv')
     batch_features, batch_targets = dataGen.generate_data_batch(batch_size=item_num_train)
     print(batch_features.shape,batch_targets.shape)
     feature_shape, target_shape = batch_features[0].shape, item_num_com
 
-    net= AttentionNet(data=(batch_features, batch_targets), input_shape=feature_shape, output_shape=target_shape)
-    net.train(batch_size=batch_size, epoches=epoches)
+    net= AttentionNet(data=(batch_features, batch_targets), input_shape=feature_shape, output_shape=target_shape,
+                      cfg=cfg)
+    # net.train(batch_size=batch_size, epoches=epoches)
     # print(net.build_cnn_net()['Q_net'].summary())
-    # net.test(epoches=epoches, batch_size = test_batch_size)
+    model_set = net.test(epoches=epoches, batch_size = test_batch_size)
+    for key in model_set.keys():
+        print(f'')

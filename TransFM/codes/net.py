@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 import sklearn
 import logging
-from TransFM.codes.configs import Q_testing, K_testing, V_testing
+
 logging.basicConfig(level = logging.INFO,format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -131,13 +131,15 @@ class TranslationLayer(Layer):
 
 ### Attention层代码实现
 class AttentionNet():
-    def __init__(self, data, input_shape, output_shape):
+    def __init__(self, data, input_shape, output_shape, cfg):
+        self.cfg = cfg
         self.input_shape = input_shape
         self.output_shape = output_shape
         self.features, self.target = data
         self.net = self.build_cnn_net()
         self.net_dict = self.build_cnn_net()
         self.add_factor = 0.4
+
 
     def build_cnn_net(self, train=False):
         inputs = Input(shape=self.input_shape)
@@ -151,30 +153,63 @@ class AttentionNet():
         ###　Build Q,K,V vectors
         ### operate CNN with each vector
 
-        Q_vector_conv_0 = Conv2D(filters=256, kernel_size=5, strides=2, padding='SAME')(inputs)
-        Q_vector_pool_0 = MaxPooling2D(pool_size=3, strides=2, padding='SAME')(Q_vector_conv_0)
-        Q_vector_conv_1 = Conv2D(filters=256, kernel_size=5, strides=2, padding='SAME')(Q_vector_pool_0)
-        Q_vector_pool_1 = MaxPooling2D(pool_size=3, strides=2, padding='SAME')(Q_vector_conv_1)
-        Q_vector_conv_2 = Conv2D(filters=128, kernel_size=3, strides=2, padding='SAME')(Q_vector_pool_1)
-        Q_vector_pool_2 = AveragePooling2D(pool_size=3, strides=2, padding='SAME')(Q_vector_conv_2)
-        Q_vector_dropout = Dropout(rate=0.5)(Q_vector_pool_2)
+        Q_net_params = self.cfg['Q_net_params']
+        Q_net_conv_0_params = Q_net_params['conv_0']
+        Q_vector_conv_0 = Conv2D(filters=Q_net_conv_0_params['filters'], kernel_size=Q_net_conv_0_params['kernel_size'],
+                                 strides=Q_net_conv_0_params['strides'], padding=Q_net_conv_0_params['padding'])(inputs)
+        Q_net_pool_0_params = Q_net_params['pool_0']
+        Q_vector_pool_0 = MaxPooling2D(pool_size=Q_net_pool_0_params['pool_size'], strides=Q_net_pool_0_params['strides'],
+                                       padding=Q_net_pool_0_params['padding'])(Q_vector_conv_0)
+        Q_net_conv_1_params = Q_net_params['conv_1']
+        Q_vector_conv_1 = Conv2D(filters=Q_net_conv_1_params['filters'], kernel_size=Q_net_conv_1_params['kernel_size'],
+                                 strides=Q_net_conv_1_params['strides'], padding=Q_net_conv_1_params['padding'])(Q_vector_pool_0)
+        Q_net_pool_1_params = Q_net_params['pool_1']
+        Q_vector_pool_1 = MaxPooling2D(pool_size=Q_net_pool_1_params['pool_size'], strides=Q_net_pool_1_params['strides'],
+                                       padding=Q_net_pool_1_params['padding'])(Q_vector_conv_1)
+        Q_net_conv_2_params = Q_net_params['conv_2']
+        Q_vector_conv_2 = Conv2D(filters=Q_net_conv_2_params['filters'], kernel_size=Q_net_conv_2_params['kernel_size'],
+                                 strides=Q_net_conv_2_params['strides'], padding=Q_net_conv_2_params['padding'])(Q_vector_pool_1)
+        Q_net_pool_2_params = Q_net_params['pool_2']
+        Q_vector_pool_2 = AveragePooling2D(pool_size=Q_net_pool_2_params['pool_size'], strides=Q_net_pool_2_params['strides'],
+                                           padding=Q_net_pool_2_params['padding'])(Q_vector_conv_2)
+        Q_vector_dropout = Dropout(rate=Q_net_params['dropout_0']['rate'])(Q_vector_pool_2)
         Q_vector_dropout_flat = Flatten()(Q_vector_dropout)
-        Q_output = Dense(16)(Q_vector_dropout_flat)
-        Q_output_fm = FMLayer(1, 128)(Q_output)
+        Q_output = Dense(Q_net_params['dense_0']['shape'])(Q_vector_dropout_flat)
+        Q_output_fm = FMLayer(Q_net_params['fm_layer_0']['shape'][0], Q_net_params['fm_layer_0']['shape'][1])(Q_output)
         print(Q_output.shape)
 
-        K_vector_conv_0 = Conv2D(filters=256, kernel_size=5, strides=2, padding='SAME')(inputs)
-        K_vector_pool_0 = MaxPooling2D(pool_size=3, strides=2, padding='SAME')(K_vector_conv_0)
-        K_vector_conv_1 = Conv2D(filters=256, kernel_size=5, strides=2, padding='SAME')(K_vector_pool_0)
-        K_vector_pool_1 = MaxPooling2D(pool_size=3, strides=2, padding='SAME')(K_vector_conv_1)
-        K_vector_conv_2 = Conv2D(filters=128, kernel_size=3, strides=2, padding='SAME')(K_vector_pool_1)
-        K_vector_pool_2 = MaxPooling2D(pool_size=3, strides=2, padding='SAME')(K_vector_conv_2)
-        K_vector_conv_3 = Conv2D(filters=64, kernel_size=3, strides=2, padding='SAME')(K_vector_pool_2)
-        K_vector_pool_3 = AveragePooling2D(pool_size=3, strides=2, padding='SAME')(K_vector_conv_3)
-        K_vector_dropout = Dropout(rate=0.5)(K_vector_pool_3)
+        K_net_params = self.cfg['K_net_params']
+        K_net_conv_0_params = K_net_params['conv_0']
+        K_vector_conv_0 = Conv2D(filters=K_net_conv_0_params['filters'], kernel_size=K_net_conv_0_params['kernel_size'],
+                                 strides=K_net_conv_0_params['strides'], padding=K_net_conv_0_params['padding'],
+                                 activation='relu')(inputs)
+        K_net_pool_0_params = K_net_params['pool_0']
+        K_vector_pool_0 = MaxPooling2D(pool_size=K_net_pool_0_params['pool_size'], strides=K_net_pool_0_params['strides'],
+                                       padding=K_net_pool_0_params['padding'])(K_vector_conv_0)
+        K_net_conv_1_params = K_net_params['conv_1']
+        K_vector_conv_1 = Conv2D(filters=K_net_conv_1_params['filters'], kernel_size=K_net_conv_1_params['kernel_size'],
+                                 strides=K_net_conv_1_params['strides'], padding=K_net_conv_1_params['padding'],
+                                 activation='relu')(K_vector_pool_0)
+        K_net_pool_1_params = K_net_params['pool_1']
+        K_vector_pool_1 = MaxPooling2D(pool_size=K_net_pool_1_params['pool_size'], strides=K_net_pool_1_params['strides'],
+                                       padding=K_net_pool_1_params['padding'])(K_vector_conv_1)
+        K_net_conv_2_params = K_net_params['conv_2']
+        K_vector_conv_2 = Conv2D(filters=K_net_conv_2_params['filters'], kernel_size=K_net_conv_2_params['kernel_size'],
+                                 strides=K_net_conv_2_params['strides'], padding=K_net_conv_2_params['padding'],
+                                 activation='sigmoid')(K_vector_pool_1)
+        K_net_pool_2_params = K_net_params['pool_2']
+        K_vector_pool_2 = MaxPooling2D(pool_size=K_net_pool_2_params['pool_size'], strides=K_net_pool_2_params['strides'],
+                                       padding=K_net_pool_2_params['padding'])(K_vector_conv_2)
+        K_net_conv_3_params = K_net_params['conv_3']
+        K_vector_conv_3 = Conv2D(filters=K_net_conv_3_params['filters'], kernel_size=K_net_conv_3_params['kernel_size'],
+                                 strides=K_net_conv_3_params['strides'], padding=K_net_conv_3_params['padding'])(K_vector_pool_2)
+        K_net_pool_3_params = K_net_params['pool_3']
+        K_vector_pool_3 = AveragePooling2D(pool_size=K_net_pool_3_params['pool_size'], strides=K_net_pool_3_params['strides'],
+                                           padding=K_net_pool_3_params['padding'])(K_vector_conv_3)
+        K_vector_dropout = Dropout(rate=K_net_params['dropout_0']['rate'])(K_vector_pool_3)
         K_vector_dropout_flat = Flatten()(K_vector_dropout)
-        K_output = Dense(32)(K_vector_dropout_flat)
-        K_output_fm = FMLayer(1, 64)(K_output)
+        K_output = Dense(K_net_params['dense_0']['shape'])(K_vector_dropout_flat)
+        K_output_fm = FMLayer(K_net_params['fm_layer_0']['shape'][0], K_net_params['fm_layer_0']['shape'][1])(K_output)
 
 
         V_vector_conv_0 = Conv2D(filters=256, kernel_size=5, strides=2, padding='SAME')(inputs)
@@ -263,7 +298,7 @@ class AttentionNet():
             if test_temp > 1.:
                 test_temp = 1 - (test_temp - 1)
             models_set[key][1] = test_temp
-        return None
+        return models_set
 
 
 

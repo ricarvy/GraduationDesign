@@ -77,4 +77,4 @@ if __name__ == '__main__':
     # print(net.build_cnn_net()['Q_net'].summary())
     model_set = net.test(epoches=epoches, batch_size = test_batch_size)
     for key in model_set.keys():
-        print(f'')
+        print(f'{model_set[key]}')

@@ -1,8 +1,3 @@
-#!/usr/bin/env python
-# -*- coding:utf-8 -*-
-# 文中部分参考了：
-# https://blog.csdn.net/u012845311/article/details/77183491
-# 改进：要划分训练集和测试集，并在进行模型评估阶段，可参考之前做过的协同过滤推荐系统中的，
 # 通过prediction[ground_truth.nonzero()]来筛选只考虑测试数据集中的预测评分
 import pandas as pd
 import numpy as np

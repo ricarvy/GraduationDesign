@@ -137,17 +137,16 @@ print(u'模型评估errors：', errors)
 
 # 第六步：--------------------------------------构建完整的电影推荐系统
 
-def process():
-    user_id = input(u'您要想哪位用户进行推荐？请输入用户编号：')
-    sortedResult = predicts[:, int(user_id)].argsort()[::-1]
-    # argsort()函数返回的是数组值从小到大的索引值; argsort()[::-1] 返回的是数组值从大到小的索引值
-    print(u'为该用户推荐的评分最高的20部电影是：'.center(80, '='))
-    # center() 返回一个原字符串居中,并使用空格填充至长度 width 的新字符串。默认填充字符为空格。
-    idx = 0
-    for i in sortedResult:
-        print(u'评分: %.2f, 电影名: %s' % (predicts[i, int(user_id)] - 2, movies_df.iloc[i]['title']))
-        # .iloc的用法：https://www.cnblogs.com/harvey888/p/6006200.html
-        idx += 1
-        if idx == 20:
-            break
+user_id = input(u'请输入用户编号：')
+sortedResult = predicts[:, int(user_id)].argsort()[::-1]
+# argsort()函数返回的是数组值从小到大的索引值; argsort()[::-1] 返回的是数组值从大到小的索引值
+# print(u'为该用户推荐的评分最高的20部电影是：'.center(80, '='))
+# center() 返回一个原字符串居中,并使用空格填充至长度 width 的新字符串。默认填充字符为空格。
+idx = 0
+for i in sortedResult:
+    print(u'评分: %.2f, %s' % (predicts[i, int(user_id)] - 2, movies_df.iloc[i]['title']))
+    # .iloc的用法：https://www.cnblogs.com/harvey888/p/6006200.html
+    idx += 1
+    if idx == 7:
+        break
 
